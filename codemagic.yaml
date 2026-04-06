@@ -23,16 +23,17 @@ workflows:
           echo "Criando pasta nova atualizada..."
           flutter create --platforms android .
           
-      - name: Ajustar o minSdkVersion para o Player de Video
+      - name: Configurar Android (MinSDK e Internet)
         script: |
-          echo "Buscando o arquivo do Gradle..."
+          echo "Ajustando o SDK do player de video..."
           if [ -f "android/app/build.gradle.kts" ]; then
             sed -i.bak 's/flutter.minSdkVersion/21/g' android/app/build.gradle.kts
           elif [ -f "android/app/build.gradle" ]; then
             sed -i.bak 's/flutter.minSdkVersion/21/g' android/app/build.gradle
-          else
-            exit 1
           fi
+          
+          echo "Injetando Permissao de Internet no Manifest..."
+          perl -pi -e 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/g' android/app/src/main/AndroidManifest.xml
           
       - name: Baixar pacotes
         script: flutter pub get
@@ -45,7 +46,6 @@ workflows:
           
           echo "Vacinando a funcao hashValues morta do Flutter..."
           find ~/.pub-cache/hosted/pub.dev/better_player-* -name "*.dart" -exec perl -pi -e 's/hashValues\(/Object.hash\(/g' {} \;
-          echo "Todas as vacinas aplicadas!"
 
       - name: Compilar o APK em modo Release
         script: flutter build apk --release
