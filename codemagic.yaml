@@ -1,0 +1,38 @@
+workflows:
+  android-build:
+    name: JinocaFlix Android APK
+    # Define o tempo máximo de build (em minutos)
+    max_build_duration: 60
+    
+    environment:
+      flutter: stable
+      # Java 17 é o recomendado para as versões mais novas do Flutter/Android
+      java: 17
+      
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: '*'
+          include: true
+          source: true
+
+    scripts:
+      - name: Baixar pacotes (Pub get)
+        script: flutter pub get
+
+      - name: Compilar o APK em modo Release
+        script: flutter build apk --release
+
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
+
+    publishing:
+      email:
+        recipients:
+          # O Codemagic vai mandar pro e-mail da sua conta automaticamente,
+          # mas você pode colocar o seu e-mail aqui embaixo se quiser forçar:
+          # - seu_email@gmail.com
+        notify:
+          success: true
+          failure: true
