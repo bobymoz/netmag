@@ -1,0 +1,52 @@
+workflows:
+  android-build:
+    name: HAREM Android APK
+    max_build_duration: 60
+    
+    environment:
+      flutter: stable
+      java: 17
+      
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: '*'
+          include: true
+          source: true
+
+    scripts:
+      - name: Atualizar arquitetura do Android (v1 para v2)
+        script: |
+          rm -rf android
+          flutter create --platforms android .
+          
+      - name: Configurar Android (MinSDK e Internet)
+        script: |
+          if [ -f "android/app/build.gradle.kts" ]; then
+            sed -i.bak 's/flutter.minSdkVersion/21/g' android/app/build.gradle.kts
+          elif [ -f "android/app/build.gradle" ]; then
+            sed -i.bak 's/flutter.minSdkVersion/21/g' android/app/build.gradle
+          fi
+          perl -pi -e 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"\/>\n    <application/g' android/app/src/main/AndroidManifest.xml
+          
+      - name: Baixar pacotes
+        script: flutter pub get
+
+      - name: Gerar Icone e Splash Screen
+        script: |
+          flutter pub run flutter_launcher_icons
+          flutter pub run flutter_native_splash:create
+
+      - name: Aplicar Vacinas no Cache
+        script: |
+          find ~/.pub-cache/hosted -path "*/better_player-*/android/build.gradle" -exec perl -pi -e 's/android \{/android {\n    namespace "com.jhomlala.better_player"/g' {} \;
+          find ~/.pub-cache/hosted -path "*/wakelock-*/android/build.gradle" -exec perl -pi -e 's/android \{/android {\n    namespace "creativecreatorormaybenot.wakelock"/g' {} \;
+          find ~/.pub-cache/hosted/pub.dev/better_player-* -name "*.dart" -exec perl -pi -e 's/hashValues\(/Object.hash\(/g' {} \;
+
+      - name: Compilar o APK Otimizado e Reduzido
+        script: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/app/outputs/symbols
+
+    artifacts:
+      - build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+      - build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
