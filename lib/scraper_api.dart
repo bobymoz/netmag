@@ -4,21 +4,24 @@ import 'package:html/parser.dart' as parser;
 class ScraperApi {
   static const String baseUrl = "https://www.muitohentai.com";
   
-  // Headers para HTML (Com Cookie de maior de 18)
+  // Headers originais copiados do seu Python
   static const Map<String, String> headers = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36",
-    "Accept-Language": "pt-BR,pt;q=0.9",
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "pt-BR,pt;q=0.7",
     "Cookie": "ageVerified=true; lshentaipt=invalida;",
     "Referer": "https://www.muitohentai.com/"
   };
 
-  // Headers limpos APENAS para imagens (Para o Cloudflare não bloquear)
+  // Headers específicos para imagens (Simula o seu img_proxy)
   static const Map<String, String> imageHeaders = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+    "Cookie": "ageVerified=true; lshentaipt=invalida;",
     "Referer": "https://www.muitohentai.com/"
   };
 
-  // Função inteligente que foge do pixel transparente (Lazy Load)
+  // Função que dribla o Lazy Loading buscando a imagem real
   static String _extrairImagemReal(var tag) {
     if (tag == null) return '';
     List<String> atributos = ['data-src', 'data-lazy-src', 'src'];
@@ -39,9 +42,14 @@ class ScraperApi {
       String query = Uri.encodeComponent(busca);
       url = "$baseUrl/buscar/$query/${pagina > 1 ? '$pagina/' : ''}";
     } else {
-      url = tipo == 'manga' 
-          ? "$baseUrl/mangas/${pagina > 1 ? '$pagina/' : ''}"
-          : "$baseUrl/hentai/${pagina > 1 ? '$pagina/' : ''}";
+      // Nova lógica com a categoria Sem Censura
+      if (tipo == 'manga') {
+        url = "$baseUrl/mangas/${pagina > 1 ? '$pagina/' : ''}";
+      } else if (tipo == 'sem_censura') {
+        url = "$baseUrl/genero/hentai-sem-censura/${pagina > 1 ? '$pagina/' : ''}";
+      } else {
+        url = "$baseUrl/hentai/${pagina > 1 ? '$pagina/' : ''}";
+      }
     }
         
     try {
@@ -76,19 +84,30 @@ class ScraperApi {
     try {
       final response = await http.get(Uri.parse(urlInfo), headers: headers);
       var document = parser.parse(response.body);
+      String htmlPuro = response.body;
 
       String titulo = document.querySelector('h1')?.text.trim() ?? "Sem Título";
       
       String poster = "";
-      var ogImg = document.querySelector('meta[property="og:image"]');
-      if (ogImg != null && ogImg.attributes['content'] != null) {
-        poster = ogImg.attributes['content']!;
+      // Tenta Meta Tag primeiro (como no seu Python)
+      RegExp expMetaImg = RegExp(r'<meta property="og:image" content="(.*?)"');
+      var matchMeta = expMetaImg.firstMatch(htmlPuro);
+      if (matchMeta != null) {
+        poster = matchMeta.group(1)!;
       } else {
         poster = _extrairImagemReal(document.querySelector('.poster img'));
       }
       if (poster.isNotEmpty && !poster.startsWith('http')) poster = "$baseUrl$poster";
 
-      String sinopse = document.querySelector('.wp-content')?.text.trim() ?? "Sinopse indisponível.";
+      String sinopse = "Sinopse não disponível.";
+      RegExp expMetaDesc = RegExp(r'<meta property="og:description" content="(.*?)"');
+      var matchDesc = expMetaDesc.firstMatch(htmlPuro);
+      if (matchDesc != null) {
+        sinopse = matchDesc.group(1)!;
+      } else {
+        var sinopseDiv = document.querySelector('.wp-content');
+        if (sinopseDiv != null) sinopse = sinopseDiv.text.trim();
+      }
 
       List<Map<String, String>> episodios = [];
       for (var a in document.querySelectorAll('a')) {
@@ -151,14 +170,17 @@ class ScraperApi {
   static Future<List<String>> extrairManga(String urlCap) async {
     try {
       var resp = await http.get(Uri.parse(urlCap), headers: headers);
-      RegExp exp = RegExp(r'''(https?://[^\s"'<>]+?\.(?:jpg|jpeg|png|webp))''', caseSensitive: false);
+      // REGEX IDÊNTICA AO SEU PYTHON
+      RegExp exp = RegExp(r'(https?://[^\s"\'<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^\s"\'<>]*)?)', caseSensitive: false);
       var matches = exp.allMatches(resp.body);
       
       List<String> imgs = [];
       for (var m in matches) {
         String src = m.group(1)!.replaceAll('\\', '');
-        if (!src.toLowerCase().contains("logo") && !src.toLowerCase().contains("icon") && !imgs.contains(src)) {
-          imgs.add(src);
+        if (!src.toLowerCase().contains("logo") && !src.toLowerCase().contains("icon") && !src.toLowerCase().contains("avatar") && !src.toLowerCase().contains("banner")) {
+          if (!imgs.contains(src)) {
+            imgs.add(src);
+          }
         }
       }
       return imgs;
