@@ -12,10 +12,16 @@ class ScraperApi {
     "Referer": "https://www.muitohentai.com/"
   };
 
-  static Future<List<Map<String, dynamic>>> obterLista(String tipo, int pagina) async {
-    String url = tipo == 'manga' 
-        ? "$baseUrl/mangas/${pagina > 1 ? '$pagina/' : ''}"
-        : "$baseUrl/hentai/${pagina > 1 ? '$pagina/' : ''}";
+  static Future<List<Map<String, dynamic>>> obterLista(String tipo, int pagina, {String busca = ""}) async {
+    String url;
+    if (busca.isNotEmpty) {
+      String query = Uri.encodeComponent(busca);
+      url = "$baseUrl/buscar/$query/${pagina > 1 ? '$pagina/' : ''}";
+    } else {
+      url = tipo == 'manga' 
+          ? "$baseUrl/mangas/${pagina > 1 ? '$pagina/' : ''}"
+          : "$baseUrl/hentai/${pagina > 1 ? '$pagina/' : ''}";
+    }
         
     try {
       final response = await http.get(Uri.parse(url), headers: headers);
@@ -125,7 +131,6 @@ class ScraperApi {
   static Future<List<String>> extrairManga(String urlCap) async {
     try {
       var resp = await http.get(Uri.parse(urlCap), headers: headers);
-      // Usando aspas triplas do Dart (r''') para não crashar com aspas simples/duplas internas
       RegExp exp = RegExp(r'''(https?://[^\s"'<>]+?\.(?:jpg|jpeg|png|webp))''');
       var matches = exp.allMatches(resp.body);
       
