@@ -1,6 +1,6 @@
 workflows:
   android-build:
-    name: JinocaFlix Android APK
+    name: HAREM Android APK
     max_build_duration: 60
     
     environment:
@@ -18,37 +18,35 @@ workflows:
     scripts:
       - name: Atualizar arquitetura do Android (v1 para v2)
         script: |
-          echo "Deletando pasta velha..."
           rm -rf android
-          echo "Criando pasta nova atualizada..."
           flutter create --platforms android .
           
       - name: Configurar Android (MinSDK e Internet)
         script: |
-          echo "Ajustando o SDK do player de video..."
           if [ -f "android/app/build.gradle.kts" ]; then
             sed -i.bak 's/flutter.minSdkVersion/21/g' android/app/build.gradle.kts
           elif [ -f "android/app/build.gradle" ]; then
             sed -i.bak 's/flutter.minSdkVersion/21/g' android/app/build.gradle
           fi
-          
-          echo "Injetando Permissao de Internet no Manifest..."
-          perl -pi -e 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/g' android/app/src/main/AndroidManifest.xml
+          perl -pi -e 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"\/>\n    <application/g' android/app/src/main/AndroidManifest.xml
           
       - name: Baixar pacotes
         script: flutter pub get
 
-      - name: Aplicar Vacinas no Cache (Bypass AGP 8 e Flutter 3.3+)
+      - name: Gerar Icone e Splash Screen
         script: |
-          echo "Vacinando o Namespace..."
+          flutter pub run flutter_launcher_icons
+          flutter pub run flutter_native_splash:create
+
+      - name: Aplicar Vacinas no Cache
+        script: |
           find ~/.pub-cache/hosted -path "*/better_player-*/android/build.gradle" -exec perl -pi -e 's/android \{/android {\n    namespace "com.jhomlala.better_player"/g' {} \;
           find ~/.pub-cache/hosted -path "*/wakelock-*/android/build.gradle" -exec perl -pi -e 's/android \{/android {\n    namespace "creativecreatorormaybenot.wakelock"/g' {} \;
-          
-          echo "Vacinando a funcao hashValues morta do Flutter..."
           find ~/.pub-cache/hosted/pub.dev/better_player-* -name "*.dart" -exec perl -pi -e 's/hashValues\(/Object.hash\(/g' {} \;
 
-      - name: Compilar o APK em modo Release
-        script: flutter build apk --release
+      - name: Compilar o APK Otimizado e Reduzido
+        script: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/app/outputs/symbols
 
     artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
+      - build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+      - build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
