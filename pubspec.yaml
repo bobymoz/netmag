@@ -26,16 +26,16 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/HAREM.jpg
+    - assets/HAREM.png
 
 flutter_icons:
   android: true
   ios: false
-  image_path: "assets/HAREM.jpg"
+  image_path: "assets/HAREM.png"
 
 flutter_native_splash:
   color: "#141414"
-  image: "assets/HAREM.jpg"
+  image: "assets/HAREM.png"
   android_12:
-    image: "assets/HAREM.jpg"
+    image: "assets/HAREM.png"
     color: "#141414"
