@@ -170,8 +170,8 @@ class ScraperApi {
   static Future<List<String>> extrairManga(String urlCap) async {
     try {
       var resp = await http.get(Uri.parse(urlCap), headers: headers);
-      // REGEX IDÊNTICA AO SEU PYTHON
-      RegExp exp = RegExp(r'(https?://[^\s"\'<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^\s"\'<>]*)?)', caseSensitive: false);
+      // REGEX BLINDADA COM ASPAS TRIPLAS PARA O DART NÃO RECLAMAR DO SINAL DE MENOR/MAIOR
+      RegExp exp = RegExp(r'''(https?://[^\s"'<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'<>]*)?)''', caseSensitive: false);
       var matches = exp.allMatches(resp.body);
       
       List<String> imgs = [];
