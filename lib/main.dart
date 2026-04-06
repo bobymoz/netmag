@@ -55,6 +55,7 @@ class DownloadManager {
   }
 }
 
+// ==== COMPONENTE FLUTUANTE DE DOWNLOAD ====
 class WidgetFlutuanteDownload extends StatelessWidget {
   const WidgetFlutuanteDownload({Key? key}) : super(key: key);
 
@@ -124,7 +125,7 @@ class HaremApp extends StatelessWidget {
   }
 }
 
-// ==== LAYOUT PRINCIPAL COM 3 ABAS ====
+// ==== LAYOUT PRINCIPAL COM 3 ABAS QUE NÃO RECARREGAM (INDEXED STACK) ====
 class MainLayout extends StatefulWidget {
   const MainLayout({Key? key}) : super(key: key);
 
@@ -135,7 +136,6 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
   
-  // As 3 telas do app!
   final List<Widget> _telas = [
     const HomeTab(tipo: 'hentai'),
     const HomeTab(tipo: 'sem_censura'),
@@ -203,7 +203,7 @@ class _MainLayoutState extends State<MainLayout> {
         onTap: (idx) => setState(() => _currentIndex = idx),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.movie), label: 'Animes'),
-          BottomNavigationBarItem(icon: Icon(Icons.whatshot), label: 'S. Censura'), // <--- NOVA ABA
+          BottomNavigationBarItem(icon: Icon(Icons.whatshot), label: 'S. Censura'),
           BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Mangás'),
         ],
       ),
@@ -211,7 +211,7 @@ class _MainLayoutState extends State<MainLayout> {
   }
 }
 
-// ==== TELA DE CATÁLOGO ====
+// ==== TELA DE CATÁLOGO (COM PESQUISA FUNCIONAL) ====
 class HomeTab extends StatefulWidget {
   final String tipo;
   const HomeTab({Key? key, required this.tipo}) : super(key: key);
@@ -321,7 +321,7 @@ class _HomeTabState extends State<HomeTab> {
                                   if (imgUrl.isNotEmpty)
                                     CachedNetworkImage(
                                       imageUrl: imgUrl, 
-                                      httpHeaders: ScraperApi.imageHeaders, // USANDO HEADERS CORRETOS
+                                      httpHeaders: ScraperApi.headers, // <-- VOLTOU PARA OS HEADERS QUE FUNCIONAM
                                       fit: BoxFit.cover,
                                       placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Colors.pinkAccent, strokeWidth: 2)),
                                       errorWidget: (context, url, error) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 40)),
@@ -418,8 +418,8 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     decoration: const BoxDecoration(color: Colors.black87),
                     child: CachedNetworkImage(
                       imageUrl: detalhes!['poster'], 
-                      httpHeaders: ScraperApi.imageHeaders, // USANDO HEADERS CORRETOS
-                      fit: BoxFit.contain, 
+                      httpHeaders: ScraperApi.headers, // <-- VOLTOU PARA OS HEADERS QUE FUNCIONAM
+                      fit: BoxFit.contain, // ISSO IMPEDE O CORTE DA CAPA!
                       placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Colors.pinkAccent)),
                     ),
                   ),
@@ -518,8 +518,8 @@ class _LeitorScreenState extends State<LeitorScreen> {
             itemCount: widget.imagens.length,
             onPageChanged: (index) => setState(() => paginaAtual = index + 1),
             builder: (c, i) => PhotoViewGalleryPageOptions(
-              imageProvider: CachedNetworkImageProvider(widget.imagens[i], headers: ScraperApi.imageHeaders), // USANDO HEADERS CORRETOS
-              initialScale: PhotoViewComputedScale.contained, 
+              imageProvider: CachedNetworkImageProvider(widget.imagens[i], headers: ScraperApi.headers), // <-- VOLTOU PARA OS HEADERS QUE FUNCIONAM
+              initialScale: PhotoViewComputedScale.contained, // NÃO CORTA AS PÁGINAS!
               minScale: PhotoViewComputedScale.contained, 
               maxScale: PhotoViewComputedScale.covered * 3,
             ),
