@@ -16,7 +16,19 @@ workflows:
           source: true
 
     scripts:
-      - name: Baixar pacotes (Pub get)
+      - name: Atualizar arquitetura do Android (v1 para v2)
+        script: |
+          echo "Deletando pasta velha..."
+          rm -rf android
+          echo "Criando pasta nova atualizada..."
+          flutter create --platforms android .
+          
+      - name: Ajustar o minSdkVersion para o Player de Vídeo
+        script: |
+          echo "Trocando flutter.minSdkVersion por 21..."
+          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle
+          
+      - name: Baixar pacotes
         script: flutter pub get
 
       - name: Compilar o APK em modo Release
