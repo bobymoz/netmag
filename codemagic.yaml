@@ -23,10 +23,19 @@ workflows:
           echo "Criando pasta nova atualizada..."
           flutter create --platforms android .
           
-      - name: Ajustar o minSdkVersion para o Player de Vídeo
+      - name: Ajustar o minSdkVersion para o Player de Video
         script: |
-          echo "Trocando flutter.minSdkVersion por 21..."
-          sed -i.bak 's/flutter.minSdkVersion/21/g' android/app/build.gradle
+          echo "Buscando o arquivo do Gradle..."
+          if [ -f "android/app/build.gradle.kts" ]; then
+            echo "Arquivo Kotlin (.kts) encontrado. Trocando minSdk..."
+            sed -i.bak 's/flutter.minSdkVersion/21/g' android/app/build.gradle.kts
+          elif [ -f "android/app/build.gradle" ]; then
+            echo "Arquivo Groovy (.gradle) encontrado. Trocando minSdkVersion..."
+            sed -i.bak 's/flutter.minSdkVersion/21/g' android/app/build.gradle
+          else
+            echo "Erro: Arquivo build.gradle nao encontrado na pasta android/app/"
+            exit 1
+          fi
           
       - name: Baixar pacotes
         script: flutter pub get
