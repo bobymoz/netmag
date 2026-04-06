@@ -16,6 +16,7 @@ void main() {
   runApp(const HaremApp());
 }
 
+// ==== GERENCIADOR GLOBAL DE DOWNLOAD ====
 class DownloadManager {
   static final ValueNotifier<bool> isDownloading = ValueNotifier(false);
   static final ValueNotifier<double> progress = ValueNotifier(0.0);
@@ -36,7 +37,7 @@ class DownloadManager {
       await Dio().download(
         url, savePath,
         cancelToken: cancelToken,
-        options: Options(headers: ScraperApi.imageHeaders),
+        options: Options(headers: ScraperApi.headers),
         onReceiveProgress: (rec, total) {
           if (total != -1) progress.value = rec / total;
         },
@@ -123,7 +124,7 @@ class HaremApp extends StatelessWidget {
   }
 }
 
-// ==== LAYOUT PRINCIPAL (INDEXED STACK CORRIGE ABAS) ====
+// ==== LAYOUT PRINCIPAL COM 3 ABAS ====
 class MainLayout extends StatefulWidget {
   const MainLayout({Key? key}) : super(key: key);
 
@@ -133,6 +134,13 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
+  
+  // As 3 telas do app!
+  final List<Widget> _telas = [
+    const HomeTab(tipo: 'hentai'),
+    const HomeTab(tipo: 'sem_censura'),
+    const HomeTab(tipo: 'manga'),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -180,13 +188,9 @@ class _MainLayoutState extends State<MainLayout> {
       ),
       body: Stack(
         children: [
-          // ISSO FAZ AS ABAS DE ANIME E MANGÁ FUNCIONAREM SEPARADAS!
           IndexedStack(
             index: _currentIndex,
-            children: const [
-              HomeTab(tipo: 'hentai'),
-              HomeTab(tipo: 'manga'),
-            ],
+            children: _telas,
           ),
           const WidgetFlutuanteDownload(),
         ],
@@ -199,6 +203,7 @@ class _MainLayoutState extends State<MainLayout> {
         onTap: (idx) => setState(() => _currentIndex = idx),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.movie), label: 'Animes'),
+          BottomNavigationBarItem(icon: Icon(Icons.whatshot), label: 'S. Censura'), // <--- NOVA ABA
           BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Mangás'),
         ],
       ),
