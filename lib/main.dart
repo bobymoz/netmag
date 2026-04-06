@@ -259,7 +259,7 @@ class _HomeTabState extends State<HomeTab> {
           ],
           GridView.builder(
             shrinkWrap: true,
-            physics: NeverScrollablePhysics(), // <--- CORRIGIDO: Removido o const que estava dando erro!
+            physics: const NeverScrollableScrollPhysics(), // <--- AQUI ESTÁ A CORREÇÃO: NOME CERTO COM CONST!
             padding: const EdgeInsets.symmetric(horizontal: 8),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.7, crossAxisSpacing: 8, mainAxisSpacing: 8),
             itemCount: itens.length + 1,
