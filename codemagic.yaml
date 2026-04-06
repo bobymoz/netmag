@@ -40,6 +40,13 @@ workflows:
       - name: Baixar pacotes
         script: flutter pub get
 
+      - name: Injetar Namespace no better_player (Bypass AGP 8)
+        script: |
+          echo "Aplicando vacina nos pacotes baixados..."
+          find ~/.pub-cache/hosted -path "*/better_player-*/android/build.gradle" -exec perl -pi -e 's/android \{/android {\n    namespace "com.jhomlala.better_player"/g' {} \;
+          find ~/.pub-cache/hosted -path "*/wakelock-*/android/build.gradle" -exec perl -pi -e 's/android \{/android {\n    namespace "creativecreatorormaybenot.wakelock"/g' {} \;
+          echo "Vacina aplicada com sucesso!"
+
       - name: Compilar o APK em modo Release
         script: flutter build apk --release
 
