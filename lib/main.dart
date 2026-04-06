@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
-import 'scraper_api.dart'; // Mantém o arquivo scraper_api.dart intocado!
+import 'scraper_api.dart'; 
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -93,7 +93,7 @@ class _MainLayoutState extends State<MainLayout> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset('assets/HAREM.jpg', height: 32, width: 32, fit: BoxFit.cover),
+              child: Image.asset('assets/HAREM.png', height: 32, width: 32, fit: BoxFit.cover),
             ),
             const SizedBox(width: 10),
             const Text('HAREM', style: TextStyle(color: Colors.pinkAccent, fontWeight: FontWeight.bold)),
@@ -133,7 +133,6 @@ class _MainLayoutState extends State<MainLayout> {
         children: [
           _telas[_currentIndex],
           
-          // WIDGET FLUTUANTE DE DOWNLOAD
           ValueListenableBuilder<bool>(
             valueListenable: DownloadManager.showFloating,
             builder: (context, show, child) {
@@ -148,7 +147,7 @@ class _MainLayoutState extends State<MainLayout> {
                       color: Colors.grey[900],
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.pinkAccent),
-                      boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 8)],
+                      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 8)],
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -260,7 +259,7 @@ class _HomeTabState extends State<HomeTab> {
           ],
           GridView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollablePhysics(),
+            physics: NeverScrollablePhysics(), // <--- CORRIGIDO: Removido o const que estava dando erro!
             padding: const EdgeInsets.symmetric(horizontal: 8),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.7, crossAxisSpacing: 8, mainAxisSpacing: 8),
             itemCount: itens.length + 1,
@@ -395,18 +394,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
-    // FORÇA O CELULAR DEITAR
     SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     BetterPlayerDataSource src = BetterPlayerDataSource(
       BetterPlayerDataSourceType.network, widget.videoUrl,
-      headers: ScraperApi.headers,
+      headers: ScraperApi.headers, 
     );
     _c = BetterPlayerController(
       const BetterPlayerConfiguration(
         autoPlay: true, 
-        fullScreenByDefault: false, // Falso porque já forçamos o app a deitar
+        fullScreenByDefault: false, 
         allowedScreenSleep: false,
         fit: BoxFit.contain,
       ),
@@ -416,7 +414,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
-    // DEVOLVE PARA PÉ QUANDO SAIR
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _c.dispose();
@@ -425,7 +422,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ESCONDE O WIDGET FLUTUANTE DURANTE O VIDEO
     WidgetsBinding.instance.addPostFrameCallback((_) => DownloadManager.showFloating.value = false);
     
     return Scaffold(
