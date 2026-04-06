@@ -100,7 +100,8 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                       imageUrl: item['imagem'],
                       httpHeaders: ScraperApi.headers,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => const Container(color: Colors.grey),
+                      // Removido o const problemático daqui:
+                      placeholder: (context, url) => Container(color: Colors.grey),
                       errorWidget: (context, url, error) => const Icon(Icons.error),
                     ),
                   ),
