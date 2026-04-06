@@ -49,7 +49,6 @@ class ScraperApi {
     try {
       final response = await http.get(Uri.parse(urlInfo), headers: headers);
       var document = parser.parse(response.body);
-      String htmlPuro = response.body;
 
       String titulo = document.querySelector('h1')?.text.trim() ?? "Sem Título";
       
@@ -126,7 +125,8 @@ class ScraperApi {
   static Future<List<String>> extrairManga(String urlCap) async {
     try {
       var resp = await http.get(Uri.parse(urlCap), headers: headers);
-      RegExp exp = RegExp(r'(https?://[^\s"\'<>]+?\.(?:jpg|jpeg|png|webp))');
+      // Usando aspas triplas do Dart (r''') para não crashar com aspas simples/duplas internas
+      RegExp exp = RegExp(r'''(https?://[^\s"'<>]+?\.(?:jpg|jpeg|png|webp))''');
       var matches = exp.allMatches(resp.body);
       
       List<String> imgs = [];
