@@ -1,5 +1,5 @@
-name: jinocaflix
-description: Meu app de animes e mangás
+name: harem
+description: Aplicativo HAREM
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -14,6 +14,28 @@ dependencies:
   cached_network_image: ^3.3.1
   better_player: ^0.0.83
   photo_view: ^0.14.0
+  carousel_slider: ^4.2.1
+  shared_preferences: ^2.2.2
+  dio: ^5.4.0
+  path_provider: ^2.1.1
+
+dev_dependencies:
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.6
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/HAREM.jpg
+
+flutter_icons:
+  android: true
+  ios: false
+  image_path: "assets/HAREM.jpg"
+
+flutter_native_splash:
+  color: "#141414"
+  image: "assets/HAREM.jpg"
+  android_12:
+    image: "assets/HAREM.jpg"
+    color: "#141414"
