@@ -26,7 +26,7 @@ workflows:
       - name: Ajustar o minSdkVersion para o Player de Vídeo
         script: |
           echo "Trocando flutter.minSdkVersion por 21..."
-          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle
+          sed -i.bak 's/flutter.minSdkVersion/21/g' android/app/build.gradle
           
       - name: Baixar pacotes
         script: flutter pub get
