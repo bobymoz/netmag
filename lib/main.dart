@@ -16,7 +16,6 @@ void main() {
   runApp(const HaremApp());
 }
 
-// ==== GERENCIADOR GLOBAL DE DOWNLOAD ====
 class DownloadManager {
   static final ValueNotifier<bool> isDownloading = ValueNotifier(false);
   static final ValueNotifier<double> progress = ValueNotifier(0.0);
@@ -37,7 +36,7 @@ class DownloadManager {
       await Dio().download(
         url, savePath,
         cancelToken: cancelToken,
-        options: Options(headers: ScraperApi.headers),
+        options: Options(headers: ScraperApi.imageHeaders),
         onReceiveProgress: (rec, total) {
           if (total != -1) progress.value = rec / total;
         },
@@ -55,7 +54,6 @@ class DownloadManager {
   }
 }
 
-// ==== COMPONENTE FLUTUANTE DE DOWNLOAD ====
 class WidgetFlutuanteDownload extends StatelessWidget {
   const WidgetFlutuanteDownload({Key? key}) : super(key: key);
 
@@ -125,7 +123,7 @@ class HaremApp extends StatelessWidget {
   }
 }
 
-// ==== LAYOUT PRINCIPAL ====
+// ==== LAYOUT PRINCIPAL (INDEXED STACK CORRIGE ABAS) ====
 class MainLayout extends StatefulWidget {
   const MainLayout({Key? key}) : super(key: key);
 
@@ -135,7 +133,6 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
-  final List<Widget> _telas = [const HomeTab(tipo: 'hentai'), const HomeTab(tipo: 'manga')];
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +180,14 @@ class _MainLayoutState extends State<MainLayout> {
       ),
       body: Stack(
         children: [
-          _telas[_currentIndex],
+          // ISSO FAZ AS ABAS DE ANIME E MANGÁ FUNCIONAREM SEPARADAS!
+          IndexedStack(
+            index: _currentIndex,
+            children: const [
+              HomeTab(tipo: 'hentai'),
+              HomeTab(tipo: 'manga'),
+            ],
+          ),
           const WidgetFlutuanteDownload(),
         ],
       ),
@@ -238,7 +242,6 @@ class _HomeTabState extends State<HomeTab> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // BARRA DE PESQUISA
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: TextField(
@@ -259,7 +262,6 @@ class _HomeTabState extends State<HomeTab> {
         ),
         
         Expanded(
-          // LÓGICA BLINDADA: Previne a Tela Preta
           child: carregando && itens.isEmpty
               ? const Center(child: CircularProgressIndicator(color: Colors.pinkAccent))
               : itens.isEmpty
@@ -269,7 +271,7 @@ class _HomeTabState extends State<HomeTab> {
                         children: [
                           const Icon(Icons.cloud_off, size: 60, color: Colors.grey),
                           const SizedBox(height: 16),
-                          const Text("Nenhum conteúdo encontrado.\nVerifique sua internet ou tente novamente.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                          const Text("Nenhum conteúdo encontrado.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
                           const SizedBox(height: 16),
                           ElevatedButton(
                             onPressed: () => _carregarDados(limpar: true),
@@ -301,23 +303,24 @@ class _HomeTabState extends State<HomeTab> {
                           );
                         }
                         var item = itens[index];
+                        String imgUrl = item['imagem'];
                         return GestureDetector(
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetalhesScreen(urlInfo: item['link']))),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Container(
-                              color: Colors.grey[900], // Fundo Cinza Evita Buracos Pretos
+                              color: Colors.grey[900],
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  CachedNetworkImage(
-                                    imageUrl: item['imagem'], 
-                                    httpHeaders: ScraperApi.headers, 
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Colors.pinkAccent, strokeWidth: 2)),
-                                    errorWidget: (context, url, error) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 40)),
-                                  ),
-                                  // Barra de Título em baixo da imagem
+                                  if (imgUrl.isNotEmpty)
+                                    CachedNetworkImage(
+                                      imageUrl: imgUrl, 
+                                      httpHeaders: ScraperApi.imageHeaders, // USANDO HEADERS CORRETOS
+                                      fit: BoxFit.cover,
+                                      placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Colors.pinkAccent, strokeWidth: 2)),
+                                      errorWidget: (context, url, error) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 40)),
+                                    ),
                                   Positioned(
                                     bottom: 0, left: 0, right: 0,
                                     child: Container(
@@ -406,12 +409,12 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                 if (detalhes!['poster'] != '')
                   Container(
                     width: double.infinity,
-                    height: 280, // Limita altura
+                    height: 280,
                     decoration: const BoxDecoration(color: Colors.black87),
                     child: CachedNetworkImage(
                       imageUrl: detalhes!['poster'], 
-                      httpHeaders: ScraperApi.headers, 
-                      fit: BoxFit.contain, // A CAPA NÃO CORTA MAIS!
+                      httpHeaders: ScraperApi.imageHeaders, // USANDO HEADERS CORRETOS
+                      fit: BoxFit.contain, 
                       placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Colors.pinkAccent)),
                     ),
                   ),
@@ -439,7 +442,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
   }
 }
 
-// ==== TELA DO PLAYER (TELA CHEIA) ====
+// ==== TELA DO PLAYER ====
 class PlayerScreen extends StatefulWidget {
   final String videoUrl;
   final String titulo;
@@ -510,8 +513,8 @@ class _LeitorScreenState extends State<LeitorScreen> {
             itemCount: widget.imagens.length,
             onPageChanged: (index) => setState(() => paginaAtual = index + 1),
             builder: (c, i) => PhotoViewGalleryPageOptions(
-              imageProvider: CachedNetworkImageProvider(widget.imagens[i], headers: ScraperApi.headers),
-              initialScale: PhotoViewComputedScale.contained, // Preenche a tela respeitando proporção
+              imageProvider: CachedNetworkImageProvider(widget.imagens[i], headers: ScraperApi.imageHeaders), // USANDO HEADERS CORRETOS
+              initialScale: PhotoViewComputedScale.contained, 
               minScale: PhotoViewComputedScale.contained, 
               maxScale: PhotoViewComputedScale.covered * 3,
             ),
@@ -519,7 +522,6 @@ class _LeitorScreenState extends State<LeitorScreen> {
             backgroundDecoration: const BoxDecoration(color: Colors.black),
           ),
           
-          // INSTRUÇÃO PISCANDO EMBAIXO
           Positioned(
             bottom: 30, left: 0, right: 0,
             child: IgnorePointer(
@@ -544,7 +546,7 @@ class _LeitorScreenState extends State<LeitorScreen> {
   }
 }
 
-// ==== TELAS DE HISTÓRICO E DOWNLOAD ====
+// ==== TELAS EXTRAS ====
 class HistoricoScreen extends StatefulWidget {
   const HistoricoScreen({Key? key}) : super(key: key);
   @override
