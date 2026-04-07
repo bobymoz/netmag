@@ -7,13 +7,63 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http; // Adicionado para o Proxy
 import 'dart:convert';
-import 'scraper_api.dart'; 
+import 'dart:typed_data'; // Adicionado para lidar com bytes
+import 'dart:ui' as ui; // Adicionado para criar a imagem
+import 'scraper_api.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const HaremApp());
+}
+
+// ==========================================
+// 🚀 PROXY MÁGICO DE IMAGENS (SUBSTITUI O /img_proxy DO PYTHON)
+// ==========================================
+class ProxyImageProvider extends ImageProvider<ProxyImageProvider> {
+  final String url;
+  const ProxyImageProvider(this.url);
+
+  @override
+  Future<ProxyImageProvider> obtainKey(ImageConfiguration configuration) {
+    return Future.value(this);
+  }
+
+  @override
+  ImageStreamCompleter loadImage(ProxyImageProvider key, ImageDecoderCallback decode) {
+    return MultiFrameImageStreamCompleter(
+      codec: _loadAsync(key, decode),
+      scale: 1.0,
+      informationCollector: () => <DiagnosticsNode>[ErrorDescription('URL: $url')],
+    );
+  }
+
+  Future<ui.Codec> _loadAsync(ProxyImageProvider key, ImageDecoderCallback decode) async {
+    try {
+      // Faz o request manual enganando a segurança, igual no Python
+      final response = await http.get(Uri.parse(url), headers: ScraperApi.headers);
+      if (response.statusCode == 200) {
+        // Pega os bytes crús e transforma em imagem
+        final Uint8List bytes = response.bodyBytes;
+        final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+        return await decode(buffer);
+      }
+      throw Exception('Falha ao baixar imagem: ${response.statusCode}');
+    } catch (e) {
+      throw Exception('Erro de rede no Proxy: $e');
+    }
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other.runtimeType != runtimeType) return false;
+    return other is ProxyImageProvider && other.url == url;
+  }
+
+  @override
+  int get hashCode => url.hashCode;
 }
 
 // ==== GERENCIADOR GLOBAL DE DOWNLOAD ====
@@ -125,7 +175,7 @@ class HaremApp extends StatelessWidget {
   }
 }
 
-// ==== LAYOUT PRINCIPAL COM 3 ABAS QUE NÃO RECARREGAM (INDEXED STACK) ====
+// ==== LAYOUT PRINCIPAL ====
 class MainLayout extends StatefulWidget {
   const MainLayout({Key? key}) : super(key: key);
 
@@ -188,10 +238,7 @@ class _MainLayoutState extends State<MainLayout> {
       ),
       body: Stack(
         children: [
-          IndexedStack(
-            index: _currentIndex,
-            children: _telas,
-          ),
+          IndexedStack(index: _currentIndex, children: _telas),
           const WidgetFlutuanteDownload(),
         ],
       ),
@@ -211,7 +258,7 @@ class _MainLayoutState extends State<MainLayout> {
   }
 }
 
-// ==== TELA DE CATÁLOGO (COM PESQUISA FUNCIONAL) ====
+// ==== TELA DE CATÁLOGO (COM PROXY DE IMAGENS) ====
 class HomeTab extends StatefulWidget {
   final String tipo;
   const HomeTab({Key? key, required this.tipo}) : super(key: key);
@@ -319,12 +366,14 @@ class _HomeTabState extends State<HomeTab> {
                                 fit: StackFit.expand,
                                 children: [
                                   if (imgUrl.isNotEmpty)
-                                    CachedNetworkImage(
-                                      imageUrl: imgUrl, 
-                                      httpHeaders: ScraperApi.headers, // <-- VOLTOU PARA OS HEADERS QUE FUNCIONAM
+                                    Image(
+                                      image: ProxyImageProvider(imgUrl), // <-- AQUI ENTRA A MÁGICA
                                       fit: BoxFit.cover,
-                                      placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Colors.pinkAccent, strokeWidth: 2)),
-                                      errorWidget: (context, url, error) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 40)),
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return const Center(child: CircularProgressIndicator(color: Colors.pinkAccent, strokeWidth: 2));
+                                      },
+                                      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 40)),
                                     ),
                                   Positioned(
                                     bottom: 0, left: 0, right: 0,
@@ -353,7 +402,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 }
 
-// ==== TELA DE DETALHES ====
+// ==== TELA DE DETALHES (COM PROXY) ====
 class DetalhesScreen extends StatefulWidget {
   final String urlInfo;
   const DetalhesScreen({Key? key, required this.urlInfo}) : super(key: key);
@@ -416,11 +465,14 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     width: double.infinity,
                     height: 280,
                     decoration: const BoxDecoration(color: Colors.black87),
-                    child: CachedNetworkImage(
-                      imageUrl: detalhes!['poster'], 
-                      httpHeaders: ScraperApi.headers, // <-- VOLTOU PARA OS HEADERS QUE FUNCIONAM
-                      fit: BoxFit.contain, // ISSO IMPEDE O CORTE DA CAPA!
-                      placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Colors.pinkAccent)),
+                    child: Image(
+                      image: ProxyImageProvider(detalhes!['poster']), // <-- MÁGICA
+                      fit: BoxFit.contain, 
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(child: CircularProgressIndicator(color: Colors.pinkAccent));
+                      },
+                      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 60)),
                     ),
                   ),
                 Padding(padding: const EdgeInsets.all(16.0), child: Text(detalhes!['sinopse'], style: const TextStyle(color: Colors.grey))),
@@ -491,7 +543,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 }
 
-// ==== LEITOR DE MANGÁ PROFISSIONAL ====
+// ==== LEITOR DE MANGÁ (COM PROXY DE PÁGINAS) ====
 class LeitorScreen extends StatefulWidget {
   final List<String> imagens;
   const LeitorScreen({Key? key, required this.imagens}) : super(key: key);
@@ -518,8 +570,8 @@ class _LeitorScreenState extends State<LeitorScreen> {
             itemCount: widget.imagens.length,
             onPageChanged: (index) => setState(() => paginaAtual = index + 1),
             builder: (c, i) => PhotoViewGalleryPageOptions(
-              imageProvider: CachedNetworkImageProvider(widget.imagens[i], headers: ScraperApi.headers), // <-- VOLTOU PARA OS HEADERS QUE FUNCIONAM
-              initialScale: PhotoViewComputedScale.contained, // NÃO CORTA AS PÁGINAS!
+              imageProvider: ProxyImageProvider(widget.imagens[i]), // <-- MÁGICA FINAL
+              initialScale: PhotoViewComputedScale.contained, 
               minScale: PhotoViewComputedScale.contained, 
               maxScale: PhotoViewComputedScale.covered * 3,
             ),
