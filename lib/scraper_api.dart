@@ -1,6 +1,5 @@
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
-import 'dart:convert';
 
 class ScraperApi {
   static const String baseUrl = "https://www.muitohentai.com";
@@ -11,6 +10,27 @@ class ScraperApi {
     "Cookie": "ageVerified=true; lshentaipt=invalida;",
     "Referer": "https://www.muitohentai.com/"
   };
+
+  static const Map<String, String> imageHeaders = {
+    "User-Agent": "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36",
+    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+    "Cookie": "ageVerified=true; lshentaipt=invalida;",
+    "Referer": "https://www.muitohentai.com/"
+  };
+
+  static String _extrairImagemReal(var tag) {
+    if (tag == null) return '';
+    List<String> atributos = ['data-src', 'data-lazy-src', 'src'];
+    for (String attr in atributos) {
+      String? val = tag.attributes[attr];
+      if (val != null && val.trim().isNotEmpty && !val.startsWith('data:image')) {
+        if (val.startsWith('//')) return 'https:$val';
+        if (val.startsWith('/')) return '$baseUrl$val';
+        return val.trim();
+      }
+    }
+    return '';
+  }
 
   static Future<List<Map<String, dynamic>>> obterLista(String tipo, int pagina, {String busca = ""}) async {
     String url;
@@ -42,10 +62,9 @@ class ScraperApi {
           String link = aTag.attributes['href'] ?? '';
           if (!link.startsWith('http')) link = "$baseUrl$link";
           
-          // Lógica exata que você forneceu!
           lista.add({
             "titulo": h3Tag.text.trim(),
-            "imagem": imgTag.attributes['src'] ?? imgTag.attributes['data-src'] ?? '',
+            "imagem": _extrairImagemReal(imgTag),
             "link": link
           });
         }
@@ -60,21 +79,45 @@ class ScraperApi {
     try {
       final response = await http.get(Uri.parse(urlInfo), headers: headers);
       var document = parser.parse(response.body);
+      String htmlPuro = response.body;
 
       String titulo = document.querySelector('h1')?.text.trim() ?? "Sem Título";
       
-      // Lógica exata que você forneceu!
       String poster = "";
-      var ogImg = document.querySelector('meta[property="og:image"]');
-      if (ogImg != null) {
-        poster = ogImg.attributes['content'] ?? '';
+      RegExp expMetaImg = RegExp(r'<meta property="og:image" content="(.*?)"');
+      var matchMeta = expMetaImg.firstMatch(htmlPuro);
+      if (matchMeta != null && matchMeta.group(1) != null) {
+        poster = matchMeta.group(1)!;
       } else {
-        var posterImg = document.querySelector('.poster img');
-        poster = posterImg?.attributes['data-src'] ?? posterImg?.attributes['src'] ?? '';
+        poster = _extrairImagemReal(document.querySelector('.poster img'));
       }
       if (poster.isNotEmpty && !poster.startsWith('http')) poster = "$baseUrl$poster";
 
-      String sinopse = document.querySelector('.wp-content')?.text.trim() ?? "Sinopse indisponível.";
+      // LÓGICA BLINDADA DA SINOPSE (Caça elementos HTML primeiro)
+      String sinopse = "";
+      var sinopseDiv = document.querySelector('.wp-content') ?? 
+                       document.querySelector('.summary__content') ?? 
+                       document.querySelector('.description') ??
+                       document.querySelector('.manga-excerpt');
+                       
+      if (sinopseDiv != null) {
+        sinopse = sinopseDiv.text.trim();
+      }
+
+      // Se não achou no HTML, tenta a Meta Tag, mas ignora se for o texto genérico do site
+      if (sinopse.isEmpty || sinopse.length < 10) {
+        RegExp expMetaDesc = RegExp(r'<meta property="og:description" content="(.*?)"');
+        var matchDesc = expMetaDesc.firstMatch(htmlPuro);
+        if (matchDesc != null && matchDesc.group(1) != null) {
+          String metaText = matchDesc.group(1)!;
+          if (!metaText.toLowerCase().contains("aqui você pode ler online") && 
+              !metaText.toLowerCase().contains("assista hentai")) {
+            sinopse = metaText;
+          }
+        }
+      }
+      
+      if (sinopse.isEmpty) sinopse = "Sinopse não disponível.";
 
       List<Map<String, String>> episodios = [];
       for (var a in document.querySelectorAll('a')) {
@@ -137,15 +180,16 @@ class ScraperApi {
   static Future<List<String>> extrairManga(String urlCap) async {
     try {
       var resp = await http.get(Uri.parse(urlCap), headers: headers);
-      // Lógica exata que você forneceu!
-      RegExp exp = RegExp(r'''(https?://[^\s"'<>]+?\.(?:jpg|jpeg|png|webp))''');
+      RegExp exp = RegExp(r'''(https?://[^\s"'<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'<>]*)?)''', caseSensitive: false);
       var matches = exp.allMatches(resp.body);
       
       List<String> imgs = [];
       for (var m in matches) {
         String src = m.group(1)!.replaceAll('\\', '');
-        if (!src.toLowerCase().contains("logo") && !src.toLowerCase().contains("icon") && !imgs.contains(src)) {
-          imgs.add(src);
+        if (!src.toLowerCase().contains("logo") && !src.toLowerCase().contains("icon") && !src.toLowerCase().contains("avatar") && !src.toLowerCase().contains("banner")) {
+          if (!imgs.contains(src)) {
+            imgs.add(src);
+          }
         }
       }
       return imgs;
