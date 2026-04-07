@@ -7,10 +7,10 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http; // Adicionado para o Proxy
+import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:typed_data'; // Adicionado para lidar com bytes
-import 'dart:ui' as ui; // Adicionado para criar a imagem
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'scraper_api.dart';
 
 void main() {
@@ -20,7 +20,7 @@ void main() {
 }
 
 // ==========================================
-// 🚀 PROXY MÁGICO DE IMAGENS (SUBSTITUI O /img_proxy DO PYTHON)
+// 🚀 PROXY MÁGICO DE IMAGENS
 // ==========================================
 class ProxyImageProvider extends ImageProvider<ProxyImageProvider> {
   final String url;
@@ -42,17 +42,15 @@ class ProxyImageProvider extends ImageProvider<ProxyImageProvider> {
 
   Future<ui.Codec> _loadAsync(ProxyImageProvider key, ImageDecoderCallback decode) async {
     try {
-      // Faz o request manual enganando a segurança, igual no Python
-      final response = await http.get(Uri.parse(url), headers: ScraperApi.headers);
+      final response = await http.get(Uri.parse(url), headers: ScraperApi.imageHeaders);
       if (response.statusCode == 200) {
-        // Pega os bytes crús e transforma em imagem
         final Uint8List bytes = response.bodyBytes;
         final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
         return await decode(buffer);
       }
-      throw Exception('Falha ao baixar imagem: ${response.statusCode}');
+      throw Exception('Falha ao baixar imagem');
     } catch (e) {
-      throw Exception('Erro de rede no Proxy: $e');
+      throw Exception('Erro de rede no Proxy');
     }
   }
 
@@ -258,7 +256,7 @@ class _MainLayoutState extends State<MainLayout> {
   }
 }
 
-// ==== TELA DE CATÁLOGO (COM PROXY DE IMAGENS) ====
+// ==== TELA DE CATÁLOGO ====
 class HomeTab extends StatefulWidget {
   final String tipo;
   const HomeTab({Key? key, required this.tipo}) : super(key: key);
@@ -367,7 +365,7 @@ class _HomeTabState extends State<HomeTab> {
                                 children: [
                                   if (imgUrl.isNotEmpty)
                                     Image(
-                                      image: ProxyImageProvider(imgUrl), // <-- AQUI ENTRA A MÁGICA
+                                      image: ProxyImageProvider(imgUrl),
                                       fit: BoxFit.cover,
                                       loadingBuilder: (context, child, loadingProgress) {
                                         if (loadingProgress == null) return child;
@@ -402,7 +400,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 }
 
-// ==== TELA DE DETALHES (COM PROXY) ====
+// ==== TELA DE DETALHES ====
 class DetalhesScreen extends StatefulWidget {
   final String urlInfo;
   const DetalhesScreen({Key? key, required this.urlInfo}) : super(key: key);
@@ -459,6 +457,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
         children: [
           SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (detalhes!['poster'] != '')
                   Container(
@@ -466,7 +465,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     height: 280,
                     decoration: const BoxDecoration(color: Colors.black87),
                     child: Image(
-                      image: ProxyImageProvider(detalhes!['poster']), // <-- MÁGICA
+                      image: ProxyImageProvider(detalhes!['poster']),
                       fit: BoxFit.contain, 
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
@@ -475,7 +474,10 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                       errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 60)),
                     ),
                   ),
-                Padding(padding: const EdgeInsets.all(16.0), child: Text(detalhes!['sinopse'], style: const TextStyle(color: Colors.grey))),
+                Padding(
+                  padding: const EdgeInsets.all(16.0), 
+                  child: Text(detalhes!['sinopse'], style: const TextStyle(color: Colors.white70, height: 1.4, fontSize: 14)),
+                ),
                 const Divider(color: Colors.white24),
                 ...List.generate((detalhes!['episodios'] as List).length, (index) {
                   var ep = detalhes!['episodios'][index];
@@ -489,6 +491,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     onTap: () => _abrir(ep),
                   );
                 }),
+                const SizedBox(height: 100), // Espaço pro FAB não cobrir nada
               ],
             ),
           ),
@@ -499,7 +502,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
   }
 }
 
-// ==== TELA DO PLAYER ====
+// ==== TELA DO PLAYER (COM DESIGN MODERNO TIPO NETFLIX) ====
 class PlayerScreen extends StatefulWidget {
   final String videoUrl;
   final String titulo;
@@ -522,8 +525,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
       BetterPlayerDataSourceType.network, widget.videoUrl,
       headers: ScraperApi.headers, 
     );
+    
+    // O SEGREDO DO DESIGN MODERNO ESTÁ AQUI!
     _c = BetterPlayerController(
-      const BetterPlayerConfiguration(autoPlay: true, fullScreenByDefault: false, allowedScreenSleep: false, fit: BoxFit.contain),
+      BetterPlayerConfiguration(
+        autoPlay: true, 
+        fullScreenByDefault: false, 
+        allowedScreenSleep: false, 
+        fit: BoxFit.contain,
+        controlsConfiguration: const BetterPlayerControlsConfiguration(
+          textColor: Colors.white,
+          controlBarColor: Colors.black54, // Barra mais transparente
+          iconsColor: Colors.white,
+          playIcon: Icons.play_circle_fill, // Icone gordinho
+          pauseIcon: Icons.pause_circle_filled,
+          enableSkips: true, // HABILITA PULAR 10s
+          skipBackIcon: Icons.replay_10_rounded,
+          skipForwardIcon: Icons.forward_10_rounded,
+          progressBarPlayedColor: Colors.pinkAccent,
+          progressBarHandleColor: Colors.pinkAccent,
+          progressBarBackgroundColor: Colors.white30,
+          progressBarBufferedColor: Colors.white54,
+          enableFullscreen: false, // Já está deitado
+        ),
+      ),
       betterPlayerDataSource: src,
     );
   }
@@ -543,7 +568,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 }
 
-// ==== LEITOR DE MANGÁ (COM PROXY DE PÁGINAS) ====
+// ==== LEITOR DE MANGÁ ====
 class LeitorScreen extends StatefulWidget {
   final List<String> imagens;
   const LeitorScreen({Key? key, required this.imagens}) : super(key: key);
@@ -570,7 +595,7 @@ class _LeitorScreenState extends State<LeitorScreen> {
             itemCount: widget.imagens.length,
             onPageChanged: (index) => setState(() => paginaAtual = index + 1),
             builder: (c, i) => PhotoViewGalleryPageOptions(
-              imageProvider: ProxyImageProvider(widget.imagens[i]), // <-- MÁGICA FINAL
+              imageProvider: ProxyImageProvider(widget.imagens[i]),
               initialScale: PhotoViewComputedScale.contained, 
               minScale: PhotoViewComputedScale.contained, 
               maxScale: PhotoViewComputedScale.covered * 3,
